@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        body {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+        }
+        #radial-bar-chart {
+            margin: auto;
+            position: relative;
+            box-shadow: 0 0 10px 0 #eee;
+        }
+        .tooltip {
+            position: absolute;
+            box-shadow: 0 0 10px 0 #000000;
+            width: 250px;
+            height: 100px;
+            border-radius: 4px;
+            box-sizing: border-box;
+            padding: 15px 10px;
+            color: #000000;
+            opacity: 0;
+            background-color: #fff;
+        }
+        .tooltip > .province {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div id="radial-bar-chart" class = "gdpChart">
+        <div id = "dropdownBox">
+            <select onchange="init('.gdpChart', this.value)" id = "month">
+                <option value ="May">May</option>
+                <option value ="June">June</option>
+                <option value="July">July</option>
+                <option value="August">August</option>
+                <option value ="September">September</option>
+                <option value ="October">October</option>
+                <option value="November">November</option>
+                <option value="December">December</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="radial-bar-chart" class = "populationChart">
+        <div id = "dropdownBox">
+            <select onchange="init('.populationChart', this.value)" id = "month">
+                <option value ="May">May</option>
+                <option value ="June">June</option>
+                <option value="July">July</option>
+                <option value="August">August</option>
+                <option value ="September">September</option>
+                <option value ="October">October</option>
+                <option value="November">November</option>
+                <option value="December">December</option>
+            </select>
+        </div>
+    </div>
+
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>       
+        init(".gdpChart", "May");
+        init(".populationChart", "May");
+
+        function init(type, month) {
+            d3.select(type).select("svg").remove();
+
+            fetch('http://localhost:9000/data/gdp')
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(myJson) {
+            //var month = $("#month option:selected").val();
+            var state = [];
+
+            var length = 0;
+            for(var i in myJson){
+                state.push(myJson[i].State);
+                length++;
+            }
+
+            const width = 800;
+            const height = 800;
+            const innerRadius = 5;
+            const outerRadius = 400;
+            const data = getDateOfStates();
+            const chartColor = 'rgba(7, 92, 214, .7)'
+            const fontColor = '#606060'
+            const gridLineColor = 'rgb(210, 214, 218)'
+            var radiusScale ;
+            if (month == "May" || month == "June" || month == "July" || month == "August" || month == "September") {
+                radiusScale = d3.scaleLinear()
+                .domain([0,19])
+                .range([0, outerRadius - 10])
+            }
+            else if (month == "October" || month == "November" || month == "December") {
+                radiusScale = d3.scaleLinear()
+                .domain([0,380])
+                .range([0, outerRadius - 10])
+            }
+
+            /*const radiusScale = d3.scaleLinear()
+                .domain([0, d3.max(data, d => parseFloat(d.SevenDaysIncidence[month]))])
+                .range([0, outerRadius - 10])*/
+
+            // Prototype or circle generation via the arc function
+            const arc = d3.arc()
+                .innerRadius(innerRadius)
+                .outerRadius(outerRadius)
+                .padAngle(Math.PI /100) 
+        
+            var svg, toolTip
+            if (type == ".gdpChart") {
+                // set tooltip
+                toolTip = d3.select(type)
+                    .append('div')
+                    .attr('class', 'tooltip')
+                toolTip.html(
+                    `
+                        <div class="state">
+                        </div>
+                        <div class="state">
+                            <span>State:</span>
+                            <span class="value"></span>
+                        </div>
+                        <div class="grp">
+                            <span>GRP per capita:</span>
+                            <span class="value"></span>
+                        </div>
+                        <div class="SevenDaysIncidence">
+                            <span>7-Days-Incidence:</span>
+                            <span class="incidence"></span>
+                        </div>
+                    `
+                )
+                svg = d3.select(type)
+                    .append('svg')
+                    .attr('width', width)
+                    .attr('height', height)
+                    .append('g')
+                    .attr('transform', `translate(${width / 2}, ${height / 2})`)
+                   
+                drawGrid()
+                drawChart('gdp')
+            }
+            else if (type == '.populationChart') {
+                // set tooltip
+                toolTip = d3.select(type)
+                    .append('div')
+                    .attr('class', 'tooltip')
+                toolTip.html(
+                    `
+                        <div class="state">
+                        </div>
+                        <div class="state">
+                            <span>State:</span>
+                            <span class="value"></span>
+                        </div>
+                        <div class="population">
+                            <span>popultation density:</span>
+                            <span class="value"></span>
+                        </div>
+                        <div class="SevenDaysIncidence">
+                            <span>7-Days-Incidence:</span>
+                            <span class="incidence"></span>
+                        </div>
+                    `
+                )
+                svg = d3.select(type)
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .append('g')
+                .attr('transform', `translate(${width / 2}, ${height / 2})`)
+
+                drawGrid()
+                drawChart('population')
+            }
+            
+        
+            function drawChart(type) {
+                // 饼图数据
+                var pieData
+                if (type == "gdp") 
+                    pieData = d3.pie().value(d => d.GRP)(data)
+                else 
+                    pieData = d3.pie().value(d => d.populationDensityPerSqKm)(data)
+
+                var arcs = svg
+                    .append('g')
+                    .attr('class', 'arcs')
+                    .selectAll('g')
+                    .data(pieData)
+                    .enter()
+                    .append('path')
+                    .attr('class', 'arc')
+                    .attr('fill', chartColor)
+                    .attr('d', function (d) {
+                        // 动态设定外半径
+                        arc.outerRadius(radiusScale(parseFloat(d.data.SevenDaysIncidence[month])))
+                        // 注册path data
+                        return arc(d)
+                    })
+                    .on('mouseover', function (d, i) {
+                        d3.select(this).transition()
+                            .duration('50')
+                            .attr('opacity', '.85')
+
+                        toolTip.style('opacity', 1)
+                        toolTip.select('.state .value').text(d.data.state)
+                        if (type == "gdp") 
+                            toolTip.select('.grp .value').text(d.data.GRP + '€')
+                        else
+                            toolTip.select('.population .value').text(d.data.populationDensityPerSqKm + '/km^2')
+                        toolTip.select('.SevenDaysIncidence .incidence').text(d.data.SevenDaysIncidence[month])
+                    })
+                    .on('mouseout', function (d, i) {
+                        d3.select(this).transition()
+                            .duration('50')
+                            .attr('opacity', '1');
+                        toolTip.style('opacity', 0)
+                    })
+            }
+            
+            svg.call(d3.zoom().scaleExtent([0.5, 4]).on("zoom", function () {
+                svg.attr("transform", 'translate(400, 400) scale('+d3.event.transform.k+','+d3.event.transform.k+')')
+            }))
+            
+            // 绘制背景网格
+            function drawGrid() {
+                const gridWrapper = svg.append('g')
+                    .attr('class', 'grid-wrapper')
+                    .attr('fill', 'transparent')
+                    .attr('stroke', gridLineColor)
+                    .attr('stroke-width', 1)
+                    .attr('stroke-dasharray', '5,5')
+                    .attr('text-anchor', 'end')
+                    .attr('dominant-baseline', 'end')
+                    .style('font-size', 12)
+                    .style('font-weight', 300)
+                    
+                   
+
+                var maxIncidence;
+                if (month == "May" || month == "June" || month == "July" || month == "August" || month == "September") {
+                    maxIncidence = 19 * outerRadius / ( outerRadius - 10 )
+                }
+                else if (month == "October" || month == "November" || month == "December") {
+                    maxIncidence = 380 * outerRadius / ( outerRadius - 10 )
+                }
+                for (let i = 1; i <= 6; i++) {
+                    var n = maxIncidence / 6 * i
+                    n = n.toFixed(1);
+                    gridWrapper.append('circle')
+                        .attr('r', outerRadius / 6 * i)
+                    gridWrapper.append('text')
+                        .text(n)
+                        .style("color", "red")
+                        .attr('transform', `translate(0, ${ -outerRadius / 6 * i })`)
+                }
+                const bandWidth = 2 * Math.PI / data.length
+                for (let i = 0; i < data.length; i++) {
+                    const x = outerRadius * Math.sin( bandWidth * i + bandWidth / 10)
+                    const y = outerRadius * Math.cos( bandWidth * i + bandWidth / 10)
+                    gridWrapper.append('line')
+                        .attr('x2',  x)
+                        .attr('y2',  y)
+                }
+            }
+
+            
+            // 转换弧度值为角度
+            function tsRadian2angle(radian) {
+                return radian * 180 / Math.PI
+            }
+            
+            // get data of each state
+            function getDateOfStates() {
+                var data = [];
+                for (var i in state) {
+                    data.push({
+                    state: myJson[i].State,
+                    GRP: myJson[i].GRPinEuro,
+                    SevenDaysIncidence: myJson[i].SevenDaysIncidence,
+                    populationDensityPerSqKm: myJson[i].populationDensityPerSqKm
+                    })
+                }
+
+                data.sort((a, b) => b.GRP - a.GRP)
+                return data
+            }
+        });
+        }
+        
+    </script>
+</body>
+</html>

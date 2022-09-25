@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>IV Group-28</title>
+    <link rel="stylesheet" href="stylesheets/map.css">
+    <link rel="stylesheet" href="stylesheets/webStyle.css">
+    <script src="https://d3js.org/d3.v4.js"></script>
+    <script src="https://cdn.staticfile.org/echarts/4.3.0/echarts.min.js"></script>
+    <script src="http://libs.baidu.com/jquery/1.10.2/jquery.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+
+</head>
+<body>
+<div> 
+    <ul class="nav">
+        <li class="selected">Basic Info.</li>
+        <li style="width: 200px;">Population & Economy</li>
+    </ul>
+
+</div>
+<div class="content">
+    <div class="list" id="container1" >
+        <div class="item item-1" id="map"></div>
+        <div class="item item-2" id="sumCases"></div>
+        <div class="item item-3" id="eachState">Coronavirus Cases:1,075,740</div>
+    
+        <script src="javascripts/map.js"></script>
+        <script src="javascripts/cumlative&deaths.js"></script>
+        <script src="javascripts/eachState.js"></script>
+    </div>
+
+    <div class="list" id="container2" style="display: none;">
+        <iframe src="polar.html" height="800" width="100%" frameborder="no" marginwidth="0" marginheight="0" scrolling="no">       
+        </iframe>
+    </div>
+
+    
+</div>
+
+<script>
+    var mapTable = {
+        "Baden-Württemberg": "DE-BW",
+        "Bayern":"DE-BY",
+        "Berlin":"DE-BE",
+        "Brandenburg":"DE-BB",
+        "Bremen":"DE-HB",
+        "Hamburg":"DE-HH",
+        "Hessen":"DE-HE",
+        "Mecklenburg-Vorpommern":"DE-MV",
+        "Niedersachsen":"DE-NI",
+        "Nordrhein-Westfalen":"DE-NW",
+        "Rheinland-Pfalz":"DE-RP",
+        "Saarland":"DE-SL",
+        "Sachsen-Anhalt":"DE-ST",
+        "Sachsen":"DE-SN",
+        "Schleswig-Holstein":"DE-SH",
+        "Thüringen": "DE-TH",
+        "Germany": "sum_cases"
+    }
+</script>
+<!--<script src="https://d3js.org/d3.v4.js"></script>-->
+<!--<script src="./JavaScript/deathlineChart.js"></script>-->
+<!--<script src="./JavaScript/map.js"></script>-->
+
+<script>
+    $(function(){
+        //获取点击事件的对象
+        $(".nav li").click(function(){
+            //获取要显示或隐藏的对象
+            var divShow = $(".content").children('.list');
+            //判断当前对象是否被选中，如果没选中的话进入if循环
+            if (!$(this).hasClass('selected')) {
+                //获取当前对象的索引
+                var index = $(this).index();
+                //当前对象添加选中样式并且其同胞移除选中样式；
+                $(this).addClass('selected').siblings('li').removeClass('selected');
+                //索引对应的div块显示
+                $(divShow[index]).show();
+                //索引对应的div块的同胞隐藏
+                $(divShow[index]).siblings('.list').hide();
+            }
+        });
+    });    
+</script>
+</body>
+
+
+</html>
